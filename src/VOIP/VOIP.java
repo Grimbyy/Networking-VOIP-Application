@@ -29,18 +29,22 @@ public class VOIP<T extends DatagramSocket> {
                 case 0:
                     SendingSocket = (T) new DatagramSocket();
                     ReceivingSocket = (T) new DatagramSocket(settings.getReceivePort());
+                    System.out.println("DS1");
                     break;
                 case 1:
                     SendingSocket = (T) new DatagramSocket2();
                     ReceivingSocket = (T) new DatagramSocket2(settings.getReceivePort());
+                    System.out.println("DS2");
                     break;
                 case 2:
                     SendingSocket = (T) new DatagramSocket3();
                     ReceivingSocket = (T) new DatagramSocket3(settings.getReceivePort());
+                    System.out.println("DS3");
                     break;
                 case 3:
                     SendingSocket = (T) new DatagramSocket4();
                     ReceivingSocket = (T) new DatagramSocket4(settings.getReceivePort());
+                    System.out.println("DS4");
                     break;
                 default:
                     throw new IllegalStateException("Unexpected value: " + settings.getDataSocket());
@@ -83,6 +87,7 @@ public class VOIP<T extends DatagramSocket> {
                     DatagramPacket packet = new DatagramPacket(buffer, buffer.length, dest, settings.getReceivePort());
                     SendingSocket.send(packet);
                 }
+                SendingSocket.close();
             } catch (LineUnavailableException e) {
                 System.err.println("Line Unavailable please check your audio settings then try again.");
                 //e.printStackTrace();
@@ -119,6 +124,7 @@ public class VOIP<T extends DatagramSocket> {
 
                     player.playBlock(buffer);
                 }
+                ReceivingSocket.close();
 
             } catch (LineUnavailableException e) {
                 e.printStackTrace();

@@ -103,6 +103,8 @@ public class ConnectToUser3 implements Runnable {
                     }
                 }
                 if (debug) {System.out.println("Connection confirmed.");}
+                receiving_socket.close();
+                sending_socket.close();
             }
 
         }
