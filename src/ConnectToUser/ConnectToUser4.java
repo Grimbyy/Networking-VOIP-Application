@@ -1,9 +1,10 @@
-package VOIPClient;
+package ConnectToUser;
 
 import java.io.IOException;
 import java.net.*;
+import uk.ac.uea.cmp.voip.DatagramSocket4;
 
-public class ConnectToUser implements Runnable {
+public class ConnectToUser4 implements Runnable {
 
     public static boolean debug = true;
 
@@ -12,20 +13,20 @@ public class ConnectToUser implements Runnable {
     public static boolean connected;
     public static String connection_failure_reason;
 
-    static DatagramSocket sending_socket, receiving_socket;
+    static DatagramSocket4 sending_socket, receiving_socket;
 
     static class EstConnection implements Runnable {
-        static DatagramSocket two_receiving_socket;
+        static DatagramSocket4 two_receiving_socket;
         public static int code_to_send = 1; // 1 ==  I haven't received your heartbeat yet
-                                    // 2 == I have received your heartbeat
+        // 2 == I have received your heartbeat
         public static boolean s_a_r_running = true;
 
         public EstConnection() {
             try { //Try set up receiving port
-                this.two_receiving_socket = new DatagramSocket(ConnectToUser.ReceivePort-2); //Receive heartbeat on port 10009
+                this.two_receiving_socket = new DatagramSocket4(ConnectToUser4.ReceivePort-2); //Receive heartbeat on port 10009
             } catch (SocketException e) {
-                ConnectToUser.connected = false;
-                ConnectToUser.connection_failure_reason = "Unable to open heartbeat port " + (ConnectToUser.ReceivePort-2);
+                ConnectToUser4.connected = false;
+                ConnectToUser4.connection_failure_reason = "Unable to open heartbeat port " + (ConnectToUser4.ReceivePort-2);
             }
         }
 
@@ -47,12 +48,12 @@ public class ConnectToUser implements Runnable {
 
             @Override
             public void run() {
-                if (debug) {System.out.println("Beginning sending of packets to " + RecipientIP.getHostName() + ":" + (ConnectToUser.ReceivePort-2));}
+                if (debug) {System.out.println("Beginning sending of packets to " + RecipientIP.getHostName() + ":" + (ConnectToUser4.ReceivePort-2));}
                 while (s_a_r_running) {
                     byte[] buffer = new byte[]{(byte) code_to_send};
-                    DatagramPacket packet = new DatagramPacket(buffer, 1, RecipientIP, ConnectToUser.ReceivePort-2); //Both users send from any available port to 10011
+                    DatagramPacket packet = new DatagramPacket(buffer, 1, RecipientIP, ConnectToUser4.ReceivePort-2); //Both users send from any available port to 10011
                     try {
-                        if (debug) {System.out.println("Port [" + sending_socket.getLocalPort() + "] Sending data to " + RecipientIP.getHostName() + ":" + (ConnectToUser.ReceivePort-2));}
+                        if (debug) {System.out.println("Port [" + sending_socket.getLocalPort() + "] Sending data to " + RecipientIP.getHostName() + ":" + (ConnectToUser4.ReceivePort-2));}
                         sending_socket.send(packet);
                     } catch (IOException e) {
                         System.err.println("Random IOException occurred");
@@ -107,12 +108,12 @@ public class ConnectToUser implements Runnable {
         }
     }
 
-    public ConnectToUser(String IP) {
+    public ConnectToUser4(String IP) {
         connected = true;
         try {
             RecipientIP = InetAddress.getByName(IP); //Grab IP from input
-            receiving_socket = new DatagramSocket(ReceivePort);
-            sending_socket = new DatagramSocket();
+            receiving_socket = new DatagramSocket4(ReceivePort);
+            sending_socket = new DatagramSocket4();
         } catch (UnknownHostException ex) {
             connected = false;
             connection_failure_reason = "Unable to find host " + IP;
