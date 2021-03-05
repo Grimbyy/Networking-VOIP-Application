@@ -2,6 +2,7 @@ package VOIP;
 
 import CMPC3M06.AudioPlayer;
 import CMPC3M06.AudioRecorder;
+import Compensation.Interleaver;
 import Encryption.*;
 import uk.ac.uea.cmp.voip.*;
 
@@ -20,11 +21,15 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
     T SendingSocket;
     T ReceivingSocket;
     E EncryptionMethod;
+    AuthKey Auth;
+    Interleaver interleaver;
 
     public VOIP(ProgramSettings importedSettings, String IPAddress) throws UnknownHostException {
 
         this.settings = importedSettings;
         this.dest = InetAddress.getByName(IPAddress);
+        Auth = new AuthKey(settings.getAuthKey());
+        interleaver = new Interleaver(settings);
 
         try {
             switch (settings.getDataSocket()) {
@@ -95,37 +100,6 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
 
     class Send extends Thread {
 
-        private byte[][] rotate(byte[][] A, int degrees) {
-            if (degrees == 90) {
-                final int AWidth = A.length;
-                final int AHeight = A[0].length;
-
-                byte[][] transposed = new byte[AHeight][AWidth];
-
-                for (int w = 0; w < AWidth; w++) {
-                    for (int h = 0; h < AHeight; h++) {
-                        transposed[h][AWidth - 1 - w] = A[w][h];
-                    }
-                }
-
-                return transposed;
-            } else if (degrees == -90) {
-                final int AWidth = A.length;
-                final int AHeight = A[0].length;
-
-                byte[][] transposed = new byte[AHeight][AWidth];
-
-                for (int w = 0; w < AWidth; w++) {
-                    for (int h = 0; h < AHeight; h++) {
-                        transposed[h][AHeight - 1 - h] = A[w][h];
-                    }
-                }
-
-                return transposed;
-            }
-            return A;
-        }
-
         @Override
         public void run() {
 
@@ -138,12 +112,12 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                     {
                         //Interleaver [Encrypt --> Rotate]
                         byte[][] queue = new byte[settings.getInterleaverSize()*settings.getInterleaverSize()][512];
-                        queue[0] = buffer;
+                        queue[0] = EncryptionMethod.encrypt(buffer);
                         for (int i = 1; i<settings.getInterleaverSize()*settings.getInterleaverSize(); i++) {
                             queue[i] = EncryptionMethod.encrypt(rec.getBlock());
                         }
 
-                        queue = rotate(queue, 90);
+                        interleaver.run(queue, "rotate");
 
                         for (int i=0;i < queue.length;i++) { //Send packets
                             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, dest, settings.getReceivePort());
@@ -155,7 +129,7 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                     }
 
                     if (settings.getAuthKeyEnabled()) { //Add auth key
-
+                        buffer = Auth.encrypt(buffer);
                     }
 
                     //Encrypt
