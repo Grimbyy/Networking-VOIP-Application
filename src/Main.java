@@ -4,6 +4,7 @@ import java.util.*;
 
 import Configuration.ProgramSettings;
 import ConnectToUser.*;
+import Encryption.Cryptography;
 import VOIP.VOIP;
 
 public class Main {
@@ -67,7 +68,7 @@ public class Main {
             MainMenu();
         }
         //Continue program here as will not get past here unless
-        VOIP<DatagramSocket> voip;
+        VOIP<DatagramSocket, Cryptography> voip;
         try {
             voip = new VOIP<>(settings, IPAddress);
             voip.start();
@@ -234,7 +235,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        settings = new ProgramSettings(0, 0, 0, false, 0, 0);
+        settings = new ProgramSettings(0, 0, 0, false, 0, 0, 10);
         MainMenu();
     }
 

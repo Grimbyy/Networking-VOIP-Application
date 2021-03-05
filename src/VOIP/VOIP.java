@@ -117,15 +117,28 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                             queue[i] = EncryptionMethod.encrypt(rec.getBlock());
                         }
 
-                        interleaver.run(queue, "rotate");
+                        queue = interleaver.run(queue, "rotate");
 
                         for (int i=0;i < queue.length;i++) { //Send packets
-                            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, dest, settings.getReceivePort());
+                            DatagramPacket packet = new DatagramPacket(queue[i], queue[i].length, dest, settings.getReceivePort());
                             SendingSocket.send(packet);
                         }
 
                         //End of Interleaver
                         continue; //Restart while loop
+                    }
+
+                    if (settings.getQueueLength() > 0) {
+                        byte[][] queue = new byte[settings.getQueueLength()][512];
+                        queue[0] = buffer;
+                        for (int i = 1; i<queue.length; i++) {
+                            queue[i] = EncryptionMethod.encrypt(rec.getBlock());
+                        }
+
+                        for (int i=0;i < queue.length;i++) { //Send packets
+                            DatagramPacket packet = new DatagramPacket(queue[i], queue[i].length, dest, settings.getReceivePort());
+                            SendingSocket.send(packet);
+                        }
                     }
 
                     if (settings.getAuthKeyEnabled()) { //Add auth key

@@ -7,6 +7,8 @@ public class ProgramSettings {
     //0 = default, 1 = DatagramSocket2, 2 = DatagramSocket3, 3 = DatagramSocket4
     private int SelectedDataSocket;
 
+    private int queueLength; //Queue of packets if interleaver is not being used
+
     // 0 = none, 1 = ASYNC KEY 2 = XOR, 3 = AES, 4 = Blowfish
     private int EncryptionType;
     private int XORKey = 343;
@@ -26,13 +28,14 @@ public class ProgramSettings {
 
     private int timeout;
 
-    public ProgramSettings(int DatagramSocket, int Compensation, int Encryption, boolean EnableAuthKey, int Key,  int interleaverSize) {
+    public ProgramSettings(int DatagramSocket, int Compensation, int Encryption, boolean EnableAuthKey, int Key,  int interleaverSize, int queueLength) {
         this.SelectedDataSocket = DatagramSocket;
         this.EncryptionType = Encryption;
         this.CompensationType = Compensation;
         this.AuthKeyEnabled = EnableAuthKey;
         this.AuthKey = Key;
         this.interleaverSize = interleaverSize;
+        this.queueLength = queueLength;
     }
 
     //Getters
@@ -61,7 +64,7 @@ public class ProgramSettings {
         this.interleaverSize = n;
     }
     public void setReceivePort(int n) { this.ReceivePort = n; }
-
+    public void setQueueLength(int n) { this.queueLength = n; }
     public void setXORKey(int n) { this.XORKey = n; }
 
     //Setters
@@ -85,6 +88,7 @@ public class ProgramSettings {
     }
     public int getReceivePort() { return this.ReceivePort; }
     public int getXORKey() { return this.XORKey; }
+    public int getQueueLength() { return this.queueLength; }
 
 
 

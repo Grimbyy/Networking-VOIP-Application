@@ -21,4 +21,10 @@ public class XOR extends Cryptography {
         }
         return OutBlock.array();
     }
+
+    @Override
+    public byte[] decrypt(byte[] toEncrypt) {
+        return encrypt(toEncrypt);
+    }
+
 }

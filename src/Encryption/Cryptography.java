@@ -11,4 +11,8 @@ public class Cryptography {
         return toEncrypt;
     }
 
+    public byte[] decrypt(byte[] toEncrypt) {
+        return toEncrypt;
+    }
+
 }
