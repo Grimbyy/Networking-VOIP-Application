@@ -119,6 +119,8 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                         }
 
                         queue = interleaver.run(queue, "rotate");
+                        //System.out.println("rotated length now = " + queue.length);
+                        //System.out.println("rotated height now = " + queue[0].length);
 
                         for (int i=0;i < queue.length;i++) { //Send packets
                             DatagramPacket packet = new DatagramPacket(queue[i], queue[i].length, dest, settings.getReceivePort());
@@ -161,7 +163,11 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
             } catch (IOException e) {
                 System.err.println("Random IO Exception Occurred.");
                 CallActive = false;
-            }
+            } catch (Exception e) {
+            System.err.println("Unknown Exception occurred");
+            e.printStackTrace();
+            CallActive = false;
+        }
 
         } //End of Sending Thread
 
@@ -174,48 +180,58 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
             try {
                 AudioPlayer player = new AudioPlayer();
                 ReceivingSocket.setSoTimeout(5000);
+                int packet_length;
+                if (settings.getAuthKeyEnabled()) {
+                    packet_length = 512+4;
+                } else {
+                    packet_length = 512;
+                }
 
                 while (CallActive) {
-                    byte[] buffer = new byte[512];
+                    byte[] buffer = new byte[packet_length];
 
-                    int size = settings.getInterleaverSize();
-
-                    if (size > 1) {
-                        //Decryption
-
-
-                        byte[][] queue = new byte[size*size][512];
+                    int InterSize = settings.getInterleaverSize();
+                    if (InterSize > 1) {
                         //Reverse Interleaver
+                        byte[][] queue = new byte[packet_length][InterSize*InterSize];
                         for (int i = 0; i < queue.length; i++) {
-                            DatagramPacket packet = new DatagramPacket(queue[i], 0, queue.length);
+                            DatagramPacket packet = new DatagramPacket(queue[i], 0, queue[i].length);
                             ReceivingSocket.receive(packet);
                         }
                         queue = interleaver.run(queue, "revert");
-
+                        //System.out.println("rotated length now = " + queue.length);
+                        //System.out.println("rotated height now = " + queue[0].length);
 
                         //End of Interleaver
-                        for (int i = 0; i <= size * size; i++) {
-                            queue[i] = EncryptionMethod.encrypt(buffer);
+                        for (int i = 0; i < queue.length; i++) { //Decryption and play
+                            player.playBlock(EncryptionMethod.decrypt(queue[i]));
                         }
 
-
-                        //End of Decryption
+                        //Return to top of loop
                         continue;
                     }
 
-                    if (settings.getAuthKeyEnabled()) {
-                        buffer = Auth.encrypt(buffer);
+                    int QueueSize = settings.getQueueLength();
+                    if (QueueSize > 0) {
+                        byte[][] queue = new byte[settings.getQueueLength()][packet_length];
+                        for (int i = 0; i < queue.length; i++)
+                        {
+                            DatagramPacket packet = new DatagramPacket(queue[i], 0, queue[i].length);
+                            ReceivingSocket.receive(packet);
+                        }
+
+                        for (int i = 0; i < queue.length; i++) { //Decryption and play
+                            player.playBlock(EncryptionMethod.decrypt(queue[i]));
+                        }
+
+                        continue;
                     }
 
-                    EncryptionMethod.encrypt(buffer);
 
                     DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
                     ReceivingSocket.receive(packet);
 
-
-                    //Compensation somewhere here
-
-                    
+                    EncryptionMethod.decrypt(buffer);
 
                     player.playBlock(buffer);
                 }
@@ -230,6 +246,10 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                 CallActive = false;
             } catch (IOException e) {
                 System.err.println("Random IO Exception Occurred");
+            } catch (Exception e) {
+                System.err.println("Unknown Exception occurred");
+                e.printStackTrace();
+                CallActive = false;
             }
         }
 

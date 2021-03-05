@@ -92,6 +92,9 @@ public class Main {
             case 2:
                 SettingsMenu();
                 break;
+            case 3:
+                PresetSelection();
+                break;
             default:
                 if (currentSubMenu == 0 && dir == 0) { System.exit(-1);};
                 MainMenu();
@@ -131,6 +134,9 @@ public class Main {
                     case 5:
                         AuthKeySelection();
                         break;
+                    case 6:
+                        QueueSizeSelection();
+                        break;
                 }
                 break;
             default:
@@ -148,6 +154,7 @@ public class Main {
         print("3. Compensation Configuration");
         print("4. Interleaver Configuration");
         print("5. Auth Key Configuration");
+        print("6. Packet Queue Configuration");
         print("0. Back");
 
         int input = getInput();
@@ -223,6 +230,60 @@ public class Main {
         };
     }
 
+    static void QueueSizeSelection() {
+        clear();
+        print(title);
+        print("   Currently Selected ["+settings.getQueueLength()+"]");
+        print("0. Back");
+
+        int input = getInput();
+        if (input == 0) {   Navigate(currentSubMenu);   } else {   settings.setQueueLength(input); Navigate(currentSubMenu, 6); };
+    }
+
+    //Settings Submenus
+    static void PresetSelection() {
+        currentSubMenu = 3;
+        clear();
+        print(title);
+        print("---Current Settings---");
+        print("   Datasocket [ " + (settings.getDataSocket()) + " ]");
+        print("   Queue Length [ "+settings.getQueueLength() + " ]");
+        print("   Encryption Type [ " + settings.getEncryptionType() + " ]");
+        print("   Compensation Type [ " + settings.getCompensationType() + " ]");
+        print("   Interleaver Size [ " + settings.getInterleaverSize() + " ]");
+        print("   AuthKey [ enabled: " + settings.getAuthKeyEnabled() + "/ key: "+ settings.getAuthKey()+" ]");
+        print("----------------------");
+
+        print("1. Demo 1");
+        print("2. Demo 2");
+        print("3. Demo 3");
+        print("4. Demo 4");
+        print("0. Back");
+
+        int input = getInput();
+        if (input == 0) {   Navigate(0);   } else {   loadSettings(input); Navigate(currentSubMenu); };
+    }
+
+    static void loadSettings(int setting) {
+        switch (setting) {
+            case 1:
+                settings = new ProgramSettings(0, 1, 0, false, 0, 4, 16);
+                break;
+            case 2:
+                settings = new ProgramSettings(1, 1, 0, false, 0, 4, 16);
+                break;
+            case 3:
+                settings = new ProgramSettings(2, 1, 0, false, 0, 8, 64);
+                break;
+            case 4:
+                settings = new ProgramSettings(0, 1, 2, true, 154, 4, 16);
+                break;
+            default:
+                settings = new ProgramSettings(0, 0, 0, false, 0, 0, 25);
+                break;
+        }
+    }
+
     static void MainMenu() {
         currentSubMenu = 0;
         clear();
@@ -235,7 +296,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        settings = new ProgramSettings(0, 0, 0, false, 0, 0, 10);
+        settings = new ProgramSettings(0, 0, 0, false, 0, 0, 25);
         MainMenu();
     }
 

@@ -28,14 +28,14 @@ public class Interleaver {
 
             return transposed;
         } else if (mode.equals("revert")) {
-            final int AWidth = A.length;
-            final int AHeight = A[0].length;
+            final int AWidth = A.length; //512 ish
+            final int AHeight = A[0].length; //interleaver size ie 4*4
 
             byte[][] transposed = new byte[AHeight][AWidth];
 
             for (int w = 0; w < AWidth; w++) {
                 for (int h = 0; h < AHeight; h++) {
-                    transposed[h][AHeight - 1 - h] = A[w][h];
+                    transposed[AHeight - 1 - h][w] = A[w][h];
                 }
             }
 
