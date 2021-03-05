@@ -9,6 +9,7 @@ public class ProgramSettings {
 
     // 0 = none, 1 = ASYNC KEY 2 = XOR, 3 = AES, 4 = Blowfish
     private int EncryptionType;
+    private int XORKey = 343;
 
     //0 = none, 1 = Splicing, 2 = Fill-in, 3 = Repetition, 4 = Interpolation
     private int CompensationType;
@@ -38,13 +39,17 @@ public class ProgramSettings {
     public void setDataSocket(int n) {
         if (n <= 3 && n >= 0) {
             this.SelectedDataSocket = n;
-        } else {    System.err.println("Invalid input '"+n+"' for Datasocket Selection");}
+        } else {    System.err.println("Invalid input '"+n+"' for Datasocket Selection");   }
     }
     public void setEncryptionType(int n) {
-        this.EncryptionType = n;
+        if (n <= 4 && n >= 0) {
+            this.EncryptionType = n;
+        } else {    System.err.println("Invalid input '"+n+"' for Encryption Selection");   }
     }
     public void setCompensationType(int n) {
-        this.CompensationType = n;
+        if (n <= 3 && n >= 0) {
+            this.CompensationType = n;
+        } else {    System.err.println("Invalid input '"+n+"' for Compensation Selection");   }
     }
     public void toggleAuthKey() {
         this.AuthKeyEnabled = !this.AuthKeyEnabled;
@@ -56,6 +61,8 @@ public class ProgramSettings {
         this.interleaverSize = n;
     }
     public void setReceivePort(int n) { this.ReceivePort = n; }
+
+    public void setXORKey(int n) { this.XORKey = n; }
 
     //Setters
     public int getDataSocket() {
@@ -77,6 +84,7 @@ public class ProgramSettings {
         return this.interleaverSize;
     }
     public int getReceivePort() { return this.ReceivePort; }
+    public int getXORKey() { return this.XORKey; }
 
 
 

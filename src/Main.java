@@ -191,7 +191,6 @@ public class Main {
         print("2. Splicing");
         print("3. Fill-in");
         print("4. Repetition");
-        print("5. Interpolation");
         print("0. Back");
 
         int input = getInput();
