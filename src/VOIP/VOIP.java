@@ -8,6 +8,7 @@ import uk.ac.uea.cmp.voip.*;
 
 import Configuration.ProgramSettings;
 
+import javax.crypto.EncryptedPrivateKeyInfo;
 import javax.sound.sampled.LineUnavailableException;
 import java.io.IOException;
 import java.net.*;
@@ -176,18 +177,45 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
 
                 while (CallActive) {
                     byte[] buffer = new byte[512];
-                    DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
 
+                    int size = settings.getInterleaverSize();
+
+                    if (size > 1) {
+                        //Decryption
+
+
+                        byte[][] queue = new byte[size*size][512];
+                        //Reverse Interleaver
+                        for (int i = 0; i < queue.length; i++) {
+                            DatagramPacket packet = new DatagramPacket(queue[i], 0, queue.length);
+                            ReceivingSocket.receive(packet);
+                        }
+                        queue = interleaver.run(queue, "revert");
+
+
+                        //End of Interleaver
+                        for (int i = 0; i <= size * size; i++) {
+                            queue[i] = EncryptionMethod.encrypt(buffer);
+                        }
+
+
+                        //End of Decryption
+                        continue;
+                    }
+
+                    if (settings.getAuthKeyEnabled()) {
+                        buffer = Auth.encrypt(buffer);
+                    }
+
+                    EncryptionMethod.encrypt(buffer);
+
+                    DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
                     ReceivingSocket.receive(packet);
 
-                    //Decryption
-
-                    //End of Decryption
-                    //Reverse Interleaver
-
-                    //End of Interleaver
 
                     //Compensation somewhere here
+
+                    
 
                     player.playBlock(buffer);
                 }
