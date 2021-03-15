@@ -81,7 +81,7 @@ public class ConnectToUser <T> implements Runnable {
                     try {
                         if (debug) {System.out.println("Waiting for other client response on port " + two_receiving_socket.getLocalPort());}
                         two_receiving_socket.receive(packet);
-                        if (debug) {System.out.println("Recieved packet from" + packet.getAddress());}
+                        if (debug) {System.out.println("Received packet from" + packet.getAddress());}
                     } catch (IOException e) {
                         System.err.println("Random IOException occurred");
                     }
