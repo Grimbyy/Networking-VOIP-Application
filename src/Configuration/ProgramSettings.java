@@ -13,7 +13,7 @@ public class ProgramSettings {
     private int EncryptionType;
     private int XORKey = 343;
 
-    //0 = none, 1 = Splicing, 2 = Fill-in, 3 = Repetition, 4 = Interpolation
+    //0 = none, 1 = Splicing, 2 = Fill-in, 3 = Repetition, 4 = Packet Sorting
     private int CompensationType;
 
     //4 = 4*4 etc; 0 = disabled.
@@ -50,9 +50,9 @@ public class ProgramSettings {
         } else {    System.err.println("Invalid input '"+n+"' for Encryption Selection");   }
     }
     public void setCompensationType(int n) {
-        if (n <= 3 && n >= 0) {
+        if (n <= 4 && n >= 0) {
             this.CompensationType = n;
-        } else {    System.err.println("Invalid input '"+n+"' for Compensation Selection");   }
+        } else {    System.err.println("Invalid input '"+n+1+"' for Compensation Selection");   }
     }
     public void toggleAuthKey() {
         this.AuthKeyEnabled = !this.AuthKeyEnabled;

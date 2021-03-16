@@ -2,6 +2,8 @@ package Compensation;
 
 import Configuration.ProgramSettings;
 
+import java.nio.ByteBuffer;
+
 public class Interleaver {
 
 
@@ -29,8 +31,9 @@ public class Interleaver {
             return transposed;
         } else if (mode.equals("revert")) {
             final int AWidth = A.length; //512 ish
+            System.out.println(AWidth);
             final int AHeight = A[0].length; //interleaver size ie 4*4
-
+            System.out.println(AHeight);
             byte[][] transposed = new byte[AHeight][AWidth];
 
             for (int w = 0; w < AWidth; w++) {

@@ -199,6 +199,7 @@ public class Main {
         print("2. Splicing");
         print("3. Fill-in");
         print("4. Repetition");
+        print("5. Packet Sorting");
         print("0. Back");
 
         int input = getInput();
@@ -267,19 +268,19 @@ public class Main {
     static void loadSettings(int setting) {
         switch (setting) {
             case 1:
-                settings = new ProgramSettings(0, 1, 0, false, 0, 4, 16);
+                settings = new ProgramSettings(0, 4, 0, false, 0, 4, 0);
                 break;
             case 2:
-                settings = new ProgramSettings(1, 1, 0, false, 0, 4, 16);
+                settings = new ProgramSettings(1, 4, 0, false, 0, 4, 0);
                 break;
             case 3:
-                settings = new ProgramSettings(2, 1, 0, false, 0, 8, 64);
+                settings = new ProgramSettings(2, 4, 0, false, 0, 4, 0);
                 break;
             case 4:
-                settings = new ProgramSettings(0, 1, 2, true, 154, 4, 16);
+                settings = new ProgramSettings(0, 4, 2, true, 154, 4, 0);
                 break;
             default:
-                settings = new ProgramSettings(0, 0, 0, false, 0, 0, 25);
+                settings = new ProgramSettings(0, 0, 0, false, 0, 0, 0);
                 break;
         }
     }
@@ -296,7 +297,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        settings = new ProgramSettings(0, 0, 0, false, 0, 0, 25);
+        settings = new ProgramSettings(0, 0, 0, false, 0, 0, 0);
         MainMenu();
     }
 

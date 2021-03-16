@@ -3,6 +3,7 @@ package VOIP;
 import CMPC3M06.AudioPlayer;
 import CMPC3M06.AudioRecorder;
 import Compensation.Interleaver;
+import Compensation.PacketSorting;
 import Encryption.*;
 import uk.ac.uea.cmp.voip.*;
 
@@ -24,6 +25,7 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
     E EncryptionMethod;
     AuthKey Auth;
     Interleaver interleaver;
+    PacketSorting pSorting;
 
     public VOIP(ProgramSettings importedSettings, String IPAddress) throws UnknownHostException {
 
@@ -31,6 +33,7 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
         this.dest = InetAddress.getByName(IPAddress);
         Auth = new AuthKey(settings.getAuthKey());
         interleaver = new Interleaver(settings);
+        pSorting = new PacketSorting();
 
         try {
             switch (settings.getDataSocket()) {
@@ -111,11 +114,32 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                     byte[] buffer = rec.getBlock();
                     if (settings.getInterleaverSize() > 1)
                     {
-                        //Interleaver [Encrypt --> Rotate]
-                        byte[][] queue = new byte[settings.getInterleaverSize()*settings.getInterleaverSize()][512];
-                        queue[0] = EncryptionMethod.encrypt(buffer);
+                        int packet_size = 512;
+                        if (settings.getCompensationType() == 4) {
+                            packet_size = packet_size+4;
+                        }
+                        if (settings.getAuthKeyEnabled()) {
+                            packet_size = packet_size+4;
+                        }
+                        //Interleaver [Encrypt --> Rotate --> add Order]
+                        byte[][] queue;
+                        if (settings.getAuthKeyEnabled()) { //Add auth key
+                            queue = new byte[settings.getInterleaverSize()*settings.getInterleaverSize()][packet_size];
+                            queue[0] = EncryptionMethod.encrypt(Auth.encrypt(buffer));
+                        } else {
+                            queue = new byte[settings.getInterleaverSize()*settings.getInterleaverSize()][packet_size];
+                            queue[0] = EncryptionMethod.encrypt(buffer);
+                        }
+
                         for (int i = 1; i<settings.getInterleaverSize()*settings.getInterleaverSize(); i++) {
-                            queue[i] = EncryptionMethod.encrypt(rec.getBlock());
+                            if (settings.getAuthKeyEnabled()) { //Add auth key
+                                queue[i] = Auth.encrypt(rec.getBlock());
+                            }
+                            queue[i] = EncryptionMethod.encrypt(queue[i]);
+                        }
+
+                        if (settings.getCompensationType() == 4) {
+                            queue = pSorting.appendOrder(queue);
                         }
 
                         queue = interleaver.run(queue, "rotate");
@@ -132,16 +156,39 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                     }
 
                     if (settings.getQueueLength() > 0) {
-                        byte[][] queue = new byte[settings.getQueueLength()][512];
-                        queue[0] = buffer;
-                        for (int i = 1; i<queue.length; i++) {
-                            queue[i] = EncryptionMethod.encrypt(rec.getBlock());
+                        int packet_size = 512;
+                        if (settings.getCompensationType() == 4) {
+                            packet_size = packet_size+4;
                         }
+                        if (settings.getAuthKeyEnabled()) {
+                            packet_size = packet_size+4;
+                        }
+                        byte[][] queue;
+                        if (settings.getAuthKeyEnabled()) { //Add auth key
+                            queue = new byte[settings.getQueueLength()][packet_size];
+                            queue[0] = Auth.encrypt(buffer);
+                        } else {
+                            queue = new byte[settings.getQueueLength()][packet_size];
+                            queue[0] = buffer;
+                        }
+
+                        for (int i = 1; i<queue.length; i++) {
+                            if (settings.getAuthKeyEnabled()) { //Add auth key
+                                queue[i] = Auth.encrypt(rec.getBlock());
+                            }
+                            queue[i] = EncryptionMethod.encrypt(queue[i]);
+                        }
+
+                        /*if (settings.getCompensationType() == 4) {
+                            queue = pSorting.appendOrder(queue);
+                        }*/
 
                         for (int i=0;i < queue.length;i++) { //Send packets
                             DatagramPacket packet = new DatagramPacket(queue[i], queue[i].length, dest, settings.getReceivePort());
                             SendingSocket.send(packet);
                         }
+
+                        continue;
                     }
 
                     if (settings.getAuthKeyEnabled()) { //Add auth key
@@ -180,11 +227,12 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
             try {
                 AudioPlayer player = new AudioPlayer();
                 ReceivingSocket.setSoTimeout(5000);
-                int packet_length;
+                int packet_length = 512;
                 if (settings.getAuthKeyEnabled()) {
-                    packet_length = 512+4;
-                } else {
-                    packet_length = 512;
+                    packet_length = packet_length + 4;
+                }
+                if (settings.getCompensationType() == 4) {
+                    packet_length = packet_length + 4;
                 }
 
                 while (CallActive) {
@@ -198,13 +246,27 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                             DatagramPacket packet = new DatagramPacket(queue[i], 0, queue[i].length);
                             ReceivingSocket.receive(packet);
                         }
+
                         queue = interleaver.run(queue, "revert");
                         //System.out.println("rotated length now = " + queue.length);
                         //System.out.println("rotated height now = " + queue[0].length);
 
+                        if (settings.getCompensationType() == 4) {
+                            System.out.println("HERE");
+                            queue = pSorting.sortQueue(queue);
+                        }
+
                         //End of Interleaver
                         for (int i = 0; i < queue.length; i++) { //Decryption and play
-                            player.playBlock(EncryptionMethod.decrypt(queue[i]));
+                            queue[i] = EncryptionMethod.decrypt(queue[i]);
+                            if (settings.getAuthKeyEnabled() && Auth.checkAuthed(queue[i]))
+                            {
+                                System.out.println("No queue, inter, auth");
+                                player.playBlock(Auth.decrypt(queue[i]));
+                            } else if (!settings.getAuthKeyEnabled()) {
+                                System.out.println("No queue, inter, no auth");
+                                player.playBlock(queue[i]);
+                            }
                         }
 
                         //Return to top of loop
@@ -220,8 +282,21 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                             ReceivingSocket.receive(packet);
                         }
 
+                        /*if (settings.getCompensationType() == 4) {
+                            System.out.println("HERE2");
+                            queue = pSorting.sortQueue(queue);
+                        }*/
+
                         for (int i = 0; i < queue.length; i++) { //Decryption and play
-                            player.playBlock(EncryptionMethod.decrypt(queue[i]));
+                            queue[i] = EncryptionMethod.decrypt(queue[i]);
+                            if (settings.getAuthKeyEnabled() && Auth.checkAuthed(queue[i]))
+                            {
+                                System.out.println("queue, no inter, auth");
+                                player.playBlock(Auth.decrypt(queue[i]));
+                            } else {
+                                System.out.println("queue, no inter, no auth");
+                                player.playBlock(queue[i]);
+                            }
                         }
 
                         continue;
@@ -231,9 +306,17 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                     DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
                     ReceivingSocket.receive(packet);
 
-                    EncryptionMethod.decrypt(buffer);
+                    buffer = EncryptionMethod.decrypt(buffer);
 
-                    player.playBlock(buffer);
+                    if (settings.getAuthKeyEnabled() && Auth.checkAuthed(buffer))
+                    {
+                        System.out.println("No queue, no inter, auth");
+                        player.playBlock(Auth.decrypt(buffer));
+                    } else if (!settings.getAuthKeyEnabled()) {
+                        System.out.println("No queue, no inter, no auth");
+                        player.playBlock(buffer);
+                    }
+
                 }
                 ReceivingSocket.close();
 
