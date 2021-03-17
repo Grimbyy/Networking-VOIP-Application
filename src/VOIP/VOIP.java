@@ -109,81 +109,78 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
 
             try {
                 AudioRecorder rec = new AudioRecorder();
+
+                int packet_length = 512; //Standard Voice Block Length
+                packet_length = settings.getAuthKeyEnabled() ? packet_length + 4 : packet_length; //Auth Key Length
+                packet_length = settings.getCompensationType() == 4 ? packet_length + 4 : packet_length; //Packet Sorting Length
+
+                System.out.println("Voice Chat Send Settings");
+                System.out.println("Packet Length: " + packet_length);
+
                 while (CallActive) {
 
-                    byte[] buffer = rec.getBlock();
-                    if (settings.getInterleaverSize() > 1)
-                    {
-                        int packet_size = 512;
-                        if (settings.getCompensationType() == 4) {
-                            packet_size = packet_size+4;
-                        }
-                        if (settings.getAuthKeyEnabled()) {
-                            packet_size = packet_size+4;
-                        }
-                        //Interleaver [Encrypt --> Rotate --> add Order]
-                        byte[][] queue;
-                        if (settings.getAuthKeyEnabled()) { //Add auth key
-                            queue = new byte[settings.getInterleaverSize()*settings.getInterleaverSize()][packet_size];
-                            queue[0] = EncryptionMethod.encrypt(Auth.encrypt(buffer));
-                        } else {
-                            queue = new byte[settings.getInterleaverSize()*settings.getInterleaverSize()][packet_size];
-                            queue[0] = EncryptionMethod.encrypt(buffer);
-                        }
+                    //Interleave [Record --> Add Auth --> Encrypt --> Add Keys --> Rotate]
+                    if (settings.getInterleaverSize() > 1) {
+                        int size = settings.getInterleaverSize() * settings.getInterleaverSize();
 
-                        for (int i = 1; i<settings.getInterleaverSize()*settings.getInterleaverSize(); i++) {
-                            if (settings.getAuthKeyEnabled()) { //Add auth key
-                                queue[i] = Auth.encrypt(rec.getBlock());
+                        //Queue of settings determined length
+                        byte[][] queue = new byte[size][packet_length];
+                        for (int i = 0; i < queue.length; i++) //Fill Queue
+                        {
+                            //Record
+                            queue[i] = rec.getBlock();
+
+                            //Add Auth
+                            if (settings.getAuthKeyEnabled()) {
+                                queue[i] = Auth.encrypt(queue[i]);
                             }
+
+                            //Encrypt (will not encrypt if none selected)
                             queue[i] = EncryptionMethod.encrypt(queue[i]);
                         }
 
-                        if (settings.getCompensationType() == 4) {
-                            queue = pSorting.appendOrder(queue);
-                        }
+                        // Add keys (if enabled)
+                        queue = settings.getCompensationType() == 4 ? pSorting.appendOrder(queue) : queue;
 
+                        // Rotate
                         queue = interleaver.run(queue, "rotate");
-                        //System.out.println("rotated length now = " + queue.length);
-                        //System.out.println("rotated height now = " + queue[0].length);
 
-                        for (int i=0;i < queue.length;i++) { //Send packets
+                        //System.out.println("Sending Block ["+queue.length+"x"+queue[0].length+"]:");
+                        for (int i = 0; i < queue.length; i++) {
+                            //for (int j = 0;j < queue[i].length;j++) { System.out.print(queue[i][j] + ", "); }
+                            //System.out.println();
                             DatagramPacket packet = new DatagramPacket(queue[i], queue[i].length, dest, settings.getReceivePort());
                             SendingSocket.send(packet);
                         }
 
-                        //End of Interleaver
-                        continue; //Restart while loop
+                        continue;
                     }
+                    //Queue (Interleaver takes precedence)
+                    //[Record --> Add Auth --> Encrypt --> Add Keys]
+                    if (settings.getQueueLength() > 1) {
+                        int size = settings.getQueueLength();
 
-                    if (settings.getQueueLength() > 0) {
-                        int packet_size = 512;
-                        if (settings.getCompensationType() == 4) {
-                            packet_size = packet_size+4;
-                        }
-                        if (settings.getAuthKeyEnabled()) {
-                            packet_size = packet_size+4;
-                        }
-                        byte[][] queue;
-                        if (settings.getAuthKeyEnabled()) { //Add auth key
-                            queue = new byte[settings.getQueueLength()][packet_size];
-                            queue[0] = Auth.encrypt(buffer);
-                        } else {
-                            queue = new byte[settings.getQueueLength()][packet_size];
-                            queue[0] = buffer;
-                        }
+                        //Queue of settings determined length
+                        byte[][] queue = new byte[size][packet_length];
+                        for (int i = 0; i < queue.length; i++) {
 
-                        for (int i = 1; i<queue.length; i++) {
-                            if (settings.getAuthKeyEnabled()) { //Add auth key
-                                queue[i] = Auth.encrypt(rec.getBlock());
+                            //Record
+                            queue[i] = rec.getBlock();
+
+                            //Add Auth
+                            if (settings.getAuthKeyEnabled()) {
+                                queue[i] = Auth.encrypt(queue[i]);
                             }
+
+                            //Encrypt (will not encrypt if none selected)
                             queue[i] = EncryptionMethod.encrypt(queue[i]);
+
                         }
 
-                        /*if (settings.getCompensationType() == 4) {
-                            queue = pSorting.appendOrder(queue);
-                        }*/
+                        // Add keys (if enabled)
+                        queue = settings.getCompensationType() == 4 ? pSorting.appendOrder(queue) : queue;
 
-                        for (int i=0;i < queue.length;i++) { //Send packets
+                        for (int i = 0; i < queue.length; i++) {
                             DatagramPacket packet = new DatagramPacket(queue[i], queue[i].length, dest, settings.getReceivePort());
                             SendingSocket.send(packet);
                         }
@@ -191,16 +188,21 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                         continue;
                     }
 
-                    if (settings.getAuthKeyEnabled()) { //Add auth key
-                        buffer = Auth.encrypt(buffer);
+                    //No Queue no Interleaver (record --> add auth --> encrypt)
+                    //Record
+                    byte[] block = rec.getBlock();
+
+                    //Add Auth
+                    if (settings.getAuthKeyEnabled()) {
+                        block = Auth.encrypt(block);
                     }
 
-                    //Encrypt
-                    EncryptionMethod.encrypt(buffer);
-                    //Send buffer (unreachable if using interleaver)
-                    DatagramPacket packet = new DatagramPacket(buffer, buffer.length, dest, settings.getReceivePort());
-                    SendingSocket.send(packet);
+                    //Encrypt (will not encrypt if none selected)
+                    block = EncryptionMethod.encrypt(block);
 
+                    //Send
+                    DatagramPacket packet = new DatagramPacket(block, block.length, dest, settings.getReceivePort());
+                    SendingSocket.send(packet);
                 }
                 SendingSocket.close();
             } catch (LineUnavailableException e) {
@@ -211,10 +213,10 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                 System.err.println("Random IO Exception Occurred.");
                 CallActive = false;
             } catch (Exception e) {
-            System.err.println("Unknown Exception occurred");
-            e.printStackTrace();
-            CallActive = false;
-        }
+                System.err.println("Unknown Exception occurred");
+                e.printStackTrace();
+                CallActive = false;
+            }
 
         } //End of Sending Thread
 
@@ -226,98 +228,92 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
         public void run() {
             try {
                 AudioPlayer player = new AudioPlayer();
-                ReceivingSocket.setSoTimeout(5000);
-                int packet_length = 512;
-                if (settings.getAuthKeyEnabled()) {
-                    packet_length = packet_length + 4;
-                }
-                if (settings.getCompensationType() == 4) {
-                    packet_length = packet_length + 4;
-                }
+
+                int packet_length = 512; //Standard Voice Block Length
+                packet_length = settings.getAuthKeyEnabled() ? packet_length + 4 : packet_length; //Auth Key Length
+                packet_length = settings.getCompensationType() == 4 ? packet_length + 4 : packet_length; //Packet Sorting Length
+
+                ReceivingSocket.setSoTimeout(5000); //Timeout setup (5 Seconds)
 
                 while (CallActive) {
-                    byte[] buffer = new byte[packet_length];
 
-                    int InterSize = settings.getInterleaverSize();
-                    if (InterSize > 1) {
-                        //Reverse Interleaver
-                        byte[][] queue = new byte[packet_length][InterSize*InterSize];
-                        for (int i = 0; i < queue.length; i++) {
+                    //Interleave [Rotate --> Sort from Keys -->  Decrypt --> Check Auth --> Play]
+                    if (settings.getInterleaverSize() > 1) {
+                        //2D Array size
+                        int size = settings.getInterleaverSize()*settings.getInterleaverSize();
+
+                        byte[][] queue = new byte[packet_length][size];
+                        for (int i = 0; i < queue.length;i++) {
                             DatagramPacket packet = new DatagramPacket(queue[i], 0, queue[i].length);
                             ReceivingSocket.receive(packet);
                         }
 
+                        //Rotate Matrix (revert)
                         queue = interleaver.run(queue, "revert");
-                        //System.out.println("rotated length now = " + queue.length);
-                        //System.out.println("rotated height now = " + queue[0].length);
 
-                        if (settings.getCompensationType() == 4) {
-                            System.out.println("HERE");
-                            queue = pSorting.sortQueue(queue);
-                        }
+                        // Sort by Keys (if enabled)
+                        queue = settings.getCompensationType() == 4 ? pSorting.sortQueue(queue) : queue;
 
-                        //End of Interleaver
-                        for (int i = 0; i < queue.length; i++) { //Decryption and play
+                        for (int i=0;i< queue.length;i++) {
                             queue[i] = EncryptionMethod.decrypt(queue[i]);
+
                             if (settings.getAuthKeyEnabled() && Auth.checkAuthed(queue[i]))
                             {
-                                System.out.println("No queue, inter, auth");
-                                player.playBlock(Auth.decrypt(queue[i]));
-                            } else if (!settings.getAuthKeyEnabled()) {
-                                System.out.println("No queue, inter, no auth");
-                                player.playBlock(queue[i]);
+                                queue[i] = Auth.decrypt(queue[i]);
+                            } else if (settings.getAuthKeyEnabled() && !Auth.checkAuthed(queue[i]))
+                            {
+                                continue;
                             }
+
+                            player.playBlock(queue[i]);
                         }
 
-                        //Return to top of loop
                         continue;
                     }
+                    //Queue [Sort from Keys --> Decrypt --> Check Auth --> Play]
+                    if (settings.getQueueLength() > 1) {
+                        //2D Array size
+                        int size = settings.getQueueLength();
 
-                    int QueueSize = settings.getQueueLength();
-                    if (QueueSize > 0) {
-                        byte[][] queue = new byte[settings.getQueueLength()][packet_length];
-                        for (int i = 0; i < queue.length; i++)
-                        {
+                        byte[][] queue = new byte[size][packet_length];
+                        for (int i = 0; i < queue.length;i++) {
                             DatagramPacket packet = new DatagramPacket(queue[i], 0, queue[i].length);
                             ReceivingSocket.receive(packet);
                         }
 
-                        /*if (settings.getCompensationType() == 4) {
-                            System.out.println("HERE2");
-                            queue = pSorting.sortQueue(queue);
-                        }*/
+                        // Sort by Keys (if enabled)
+                        queue = settings.getCompensationType() == 4 ? pSorting.sortQueue(queue) : queue;
 
-                        for (int i = 0; i < queue.length; i++) { //Decryption and play
+                        for (int i=0;i< queue.length;i++) {
                             queue[i] = EncryptionMethod.decrypt(queue[i]);
+
                             if (settings.getAuthKeyEnabled() && Auth.checkAuthed(queue[i]))
                             {
-                                System.out.println("queue, no inter, auth");
-                                player.playBlock(Auth.decrypt(queue[i]));
-                            } else {
-                                System.out.println("queue, no inter, no auth");
-                                player.playBlock(queue[i]);
+                                queue[i] = Auth.decrypt(queue[i]);
                             }
+
+                            player.playBlock(queue[i]);
                         }
 
                         continue;
                     }
 
+                    //No Interleaving no Queue (Decrypt --> Check auth --> Play)
+                    byte[] buffer = new byte[packet_length];
 
                     DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
                     ReceivingSocket.receive(packet);
 
                     buffer = EncryptionMethod.decrypt(buffer);
 
-                    if (settings.getAuthKeyEnabled() && Auth.checkAuthed(buffer))
-                    {
-                        System.out.println("No queue, no inter, auth");
-                        player.playBlock(Auth.decrypt(buffer));
+                    if (settings.getAuthKeyEnabled() && Auth.checkAuthed(buffer)) {
+                        buffer = Auth.decrypt(buffer);
+                        player.playBlock(buffer);
                     } else if (!settings.getAuthKeyEnabled()) {
-                        System.out.println("No queue, no inter, no auth");
                         player.playBlock(buffer);
                     }
-
                 }
+
                 ReceivingSocket.close();
 
             } catch (LineUnavailableException e) {

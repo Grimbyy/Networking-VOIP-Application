@@ -20,11 +20,15 @@ public class AuthKey extends Cryptography {
 
     @Override
     public byte[] decrypt(byte[] toDecrypt) {
-        ByteBuffer OutBlock = ByteBuffer.wrap(toDecrypt);
-        int authKey = OutBlock.getInt();
-        //System.out.println(authKey);
-        byte[] audio = OutBlock.get(4, toDecrypt, 0, 512).array();
-        return audio;
+        if (checkAuthed(toDecrypt)) {
+            ByteBuffer OutBlock = ByteBuffer.wrap(toDecrypt);
+            int authKey = OutBlock.getInt();
+            //System.out.println(authKey);
+            byte[] audio = OutBlock.get(4, toDecrypt, 0, toDecrypt.length-4).array();
+            return audio;
+        } else {
+            return toDecrypt;
+        }
     }
 
     public boolean checkAuthed(byte[] block) {

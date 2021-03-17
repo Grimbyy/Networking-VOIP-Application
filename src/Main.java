@@ -270,11 +270,11 @@ public class Main {
             case 1:
                 settings = new ProgramSettings(0, 4, 0, false, 0, 4, 0);
                 break;
-            case 2:
-                settings = new ProgramSettings(1, 4, 0, false, 0, 4, 0);
+            case 2: //
+                settings = new ProgramSettings(1, 4, 0, false, 0, 0, 20);
                 break;
             case 3:
-                settings = new ProgramSettings(2, 4, 0, false, 0, 4, 0);
+                settings = new ProgramSettings(2, 4, 0, false, 0, 0, 20);
                 break;
             case 4:
                 settings = new ProgramSettings(0, 4, 2, true, 154, 4, 0);
