@@ -28,6 +28,8 @@ public class ProgramSettings {
 
     private int timeout;
 
+    private boolean disableDecryption = false;
+
     public ProgramSettings(int DatagramSocket, int Compensation, int Encryption, boolean EnableAuthKey, int Key,  int interleaverSize, int queueLength) {
         this.SelectedDataSocket = DatagramSocket;
         this.EncryptionType = Encryption;
@@ -36,6 +38,17 @@ public class ProgramSettings {
         this.AuthKey = Key;
         this.interleaverSize = interleaverSize;
         this.queueLength = queueLength;
+    }
+
+    public ProgramSettings(int DatagramSocket, int Compensation, int Encryption, boolean EnableAuthKey, int Key,  int interleaverSize, int queueLength, boolean disableDecryption) {
+        this.SelectedDataSocket = DatagramSocket;
+        this.EncryptionType = Encryption;
+        this.CompensationType = Compensation;
+        this.AuthKeyEnabled = EnableAuthKey;
+        this.AuthKey = Key;
+        this.interleaverSize = interleaverSize;
+        this.queueLength = queueLength;
+        this.disableDecryption = disableDecryption;
     }
 
     //Getters
@@ -89,6 +102,17 @@ public class ProgramSettings {
     public int getReceivePort() { return this.ReceivePort; }
     public int getXORKey() { return this.XORKey; }
     public int getQueueLength() { return this.queueLength; }
+
+    public boolean decryptionDisabled() {return this.disableDecryption;}
+
+    public int getCalculatedPacketLength()
+    {
+        int packet_length = 512; //Standard Voice Block Length
+        packet_length = getAuthKeyEnabled() ? packet_length + 4 : packet_length; //Auth Key Length
+        packet_length = getCompensationType() == 4 ? packet_length + 8 : packet_length; //Packet Sorting Length
+
+        return packet_length;
+    }
 
 
 

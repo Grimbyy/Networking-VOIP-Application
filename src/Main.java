@@ -250,15 +250,17 @@ public class Main {
         print("   Datasocket [ " + (settings.getDataSocket()) + " ]");
         print("   Queue Length [ "+settings.getQueueLength() + " ]");
         print("   Encryption Type [ " + settings.getEncryptionType() + " ]");
+        print("   Decryption Status [ " + !settings.decryptionDisabled() + " ]");
         print("   Compensation Type [ " + settings.getCompensationType() + " ]");
         print("   Interleaver Size [ " + settings.getInterleaverSize() + " ]");
         print("   AuthKey [ enabled: " + settings.getAuthKeyEnabled() + "/ key: "+ settings.getAuthKey()+" ]");
         print("----------------------");
 
-        print("1. Demo 1");
-        print("2. Demo 2");
-        print("3. Demo 3");
-        print("4. Demo 4");
+        print("1. Demo 1 [QoS No Packet Loss]");
+        print("2. Demo 2 [Datagram Socket 2]");
+        print("3. Demo 3 [Datagram Socket 3]");
+        print("4. Demo 4 [DECRYPTION DISABLED]");
+        print("5. Demo 5 [DECRYPTION ENABLED]");
         print("0. Back");
 
         int input = getInput();
@@ -268,16 +270,19 @@ public class Main {
     static void loadSettings(int setting) {
         switch (setting) {
             case 1:
-                settings = new ProgramSettings(0, 4, 0, false, 0, 4, 0);
+                settings = new ProgramSettings(0, 4, 0, false, 0, 3, 0);
                 break;
             case 2: //
-                settings = new ProgramSettings(1, 4, 0, false, 0, 0, 20);
+                settings = new ProgramSettings(1, 4, 0, false, 0, 12, 0);
                 break;
             case 3:
-                settings = new ProgramSettings(2, 4, 0, false, 0, 0, 20);
+                settings = new ProgramSettings(2, 4, 0, false, 0, 6, 0);
                 break;
             case 4:
-                settings = new ProgramSettings(0, 4, 2, true, 154, 4, 0);
+                settings = new ProgramSettings(0, 4, 2, false, 0, 3, 0, true);
+                break;
+            case 5:
+                settings = new ProgramSettings(0, 4, 2, true, 154, 3, 0);
                 break;
             default:
                 settings = new ProgramSettings(0, 0, 0, false, 0, 0, 0);

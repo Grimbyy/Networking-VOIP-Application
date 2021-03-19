@@ -33,7 +33,7 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
         this.dest = InetAddress.getByName(IPAddress);
         Auth = new AuthKey(settings.getAuthKey());
         interleaver = new Interleaver(settings);
-        pSorting = new PacketSorting();
+        pSorting = new PacketSorting(settings);
 
         try {
             switch (settings.getDataSocket()) {
@@ -78,7 +78,7 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                 break;
             case 3:
                 //AES
-                EncryptionMethod = (E) new AES();
+                EncryptionMethod = (E) new AES("ueanetworks");
                 break;
             case 4:
                 //Blowfish
@@ -112,10 +112,12 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
 
                 int packet_length = 512; //Standard Voice Block Length
                 packet_length = settings.getAuthKeyEnabled() ? packet_length + 4 : packet_length; //Auth Key Length
-                packet_length = settings.getCompensationType() == 4 ? packet_length + 4 : packet_length; //Packet Sorting Length
+                packet_length = settings.getCompensationType() == 4 ? packet_length + 8 : packet_length; //Packet Sorting Length
 
                 System.out.println("Voice Chat Send Settings");
                 System.out.println("Packet Length: " + packet_length);
+
+                int block_key = 0;
 
                 while (CallActive) {
 
@@ -140,7 +142,7 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                         }
 
                         // Add keys (if enabled)
-                        queue = settings.getCompensationType() == 4 ? pSorting.appendOrder(queue) : queue;
+                        queue = settings.getCompensationType() == 4 ? pSorting.appendOrder(queue, block_key) : queue;
 
                         // Rotate
                         queue = interleaver.run(queue, "rotate");
@@ -152,6 +154,9 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                             DatagramPacket packet = new DatagramPacket(queue[i], queue[i].length, dest, settings.getReceivePort());
                             SendingSocket.send(packet);
                         }
+
+                        block_key++;
+                        if (block_key>=14) { block_key = 0;}
 
                         continue;
                     }
@@ -184,6 +189,9 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                             DatagramPacket packet = new DatagramPacket(queue[i], queue[i].length, dest, settings.getReceivePort());
                             SendingSocket.send(packet);
                         }
+
+                        block_key++;
+                        if (block_key>=14) { block_key = 0;}
 
                         continue;
                     }
@@ -231,9 +239,18 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
 
                 int packet_length = 512; //Standard Voice Block Length
                 packet_length = settings.getAuthKeyEnabled() ? packet_length + 4 : packet_length; //Auth Key Length
-                packet_length = settings.getCompensationType() == 4 ? packet_length + 4 : packet_length; //Packet Sorting Length
+                packet_length = settings.getCompensationType() == 4 ? packet_length + 8 : packet_length; //Packet Sorting Length
 
-                ReceivingSocket.setSoTimeout(5000); //Timeout setup (5 Seconds)
+                switch (settings.getInterleaverSize()){
+                    case 12: ReceivingSocket.setSoTimeout(10000); //Timeout setup (10 Seconds) FOR LARGE INTERLEAVER
+                        break;
+                    case 8: ReceivingSocket.setSoTimeout(7500); //Timeout setup (7.5 Seconds) FOR Medium INTERLEAVER
+                        break;
+                    default: ReceivingSocket.setSoTimeout(5000);
+                        break;
+                }
+
+                int block_key = 0;
 
                 while (CallActive) {
 
@@ -242,7 +259,7 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                         //2D Array size
                         int size = settings.getInterleaverSize()*settings.getInterleaverSize();
 
-                        byte[][] queue = new byte[packet_length][size];
+                        byte[][] queue = new byte[size][packet_length];
                         for (int i = 0; i < queue.length;i++) {
                             DatagramPacket packet = new DatagramPacket(queue[i], 0, queue[i].length);
                             ReceivingSocket.receive(packet);
@@ -252,21 +269,27 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                         queue = interleaver.run(queue, "revert");
 
                         // Sort by Keys (if enabled)
-                        queue = settings.getCompensationType() == 4 ? pSorting.sortQueue(queue) : queue;
+                        queue = settings.getCompensationType() == 4 ? pSorting.sortQueue(queue, block_key) : queue;
 
-                        for (int i=0;i< queue.length;i++) {
-                            queue[i] = EncryptionMethod.decrypt(queue[i]);
+                        for (int i=0;i < queue.length;i++) {
+                            if (!settings.decryptionDisabled()) {
+                                queue[i] = EncryptionMethod.decrypt(queue[i]);
+                            }
 
                             if (settings.getAuthKeyEnabled() && Auth.checkAuthed(queue[i]))
                             {
                                 queue[i] = Auth.decrypt(queue[i]);
-                            } else if (settings.getAuthKeyEnabled() && !Auth.checkAuthed(queue[i]))
+                            }
+                                else if (settings.getAuthKeyEnabled() && !Auth.checkAuthed(queue[i]))
                             {
                                 continue;
                             }
 
                             player.playBlock(queue[i]);
                         }
+
+                        block_key++;
+                        if (block_key==14) { block_key = 0;}
 
                         continue;
                     }
@@ -282,10 +305,12 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                         }
 
                         // Sort by Keys (if enabled)
-                        queue = settings.getCompensationType() == 4 ? pSorting.sortQueue(queue) : queue;
+                        queue = settings.getCompensationType() == 4 ? pSorting.sortQueue(queue, block_key) : queue;
 
                         for (int i=0;i< queue.length;i++) {
-                            queue[i] = EncryptionMethod.decrypt(queue[i]);
+                            if (!settings.decryptionDisabled()) {
+                                queue[i] = EncryptionMethod.decrypt(queue[i]);
+                            }
 
                             if (settings.getAuthKeyEnabled() && Auth.checkAuthed(queue[i]))
                             {
@@ -294,6 +319,9 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
 
                             player.playBlock(queue[i]);
                         }
+
+                        block_key++;
+                        if (block_key==14) { block_key = 0;}
 
                         continue;
                     }
@@ -304,7 +332,10 @@ public class VOIP<T extends DatagramSocket, E extends Cryptography> {
                     DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
                     ReceivingSocket.receive(packet);
 
-                    buffer = EncryptionMethod.decrypt(buffer);
+
+                    if (!settings.decryptionDisabled()) {
+                        buffer = EncryptionMethod.decrypt(buffer);
+                    }
 
                     if (settings.getAuthKeyEnabled() && Auth.checkAuthed(buffer)) {
                         buffer = Auth.decrypt(buffer);

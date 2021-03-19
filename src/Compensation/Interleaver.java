@@ -12,7 +12,8 @@ public class Interleaver {
     }
 
     public byte[][] run(byte[][] A, String mode) {
-        return rotate(A, mode);
+        //return rotate(A, mode);
+        return rotate2(A, mode);
     }
 
     private byte[][] rotate(byte[][] A, String mode) {
@@ -49,5 +50,30 @@ public class Interleaver {
             return rotate(rotate(rotate(A, "rotate"), "rotate"), "rotate");
         }
         return A;
+    }
+
+    private byte[][] rotate2(byte[][] A, String mode) {
+        byte[][] transposed = new byte[A.length][A[0].length];
+        int interleaverXY = (int) Math.sqrt(A.length);
+        //System.out.println(interleaverXY);
+        if (mode.equals("rotate")) {
+
+            for (int x = 0; x < interleaverXY; x++) {
+                for (int y = 0; y < interleaverXY; y++) {
+                    transposed[x * interleaverXY + y] = A[(interleaverXY - y - 1) * interleaverXY + x];
+                    //System.out.println("rotate");
+                }
+            }
+
+        } else {
+
+            for (int x = 0; x < interleaverXY; x++) {
+                for (int y = 0; y < interleaverXY; y++) {
+                    transposed[(interleaverXY - y - 1) * interleaverXY + x] = A[x * interleaverXY + y];
+                }
+            }
+
+        }
+        return transposed;
     }
 }
