@@ -270,13 +270,13 @@ public class Main {
     static void loadSettings(int setting) {
         switch (setting) {
             case 1:
-                settings = new ProgramSettings(0, 4, 0, false, 0, 3, 0);
+                settings = new ProgramSettings(0, 0, 0, false, 0, 3, 0);
                 break;
             case 2: //
                 settings = new ProgramSettings(1, 4, 0, false, 0, 12, 0);
                 break;
             case 3:
-                settings = new ProgramSettings(2, 4, 0, false, 0, 6, 0);
+                settings = new ProgramSettings(2, 4, 0, false, 0, 12, 0);
                 break;
             case 4:
                 settings = new ProgramSettings(0, 4, 2, false, 0, 3, 0, true);

@@ -20,7 +20,7 @@ public class AES extends Cryptography {
     private static SecretKeySpec myKey;
     private static byte[] bytekey;
 
-    public AES(String key) {
+    public AES(String key) {  // SEE DECLARATION AT TOP OF PAGE
         super();
         MessageDigest shakey = null;
         try {

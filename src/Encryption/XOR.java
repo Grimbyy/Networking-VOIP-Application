@@ -19,7 +19,7 @@ public class XOR extends Cryptography {
             byteBlock = byteBlock ^ this.XORKey;
             OutBlock.putInt(byteBlock);
         }
-        return encrypt(OutBlock.array(), this.XORKey*8);
+        return encrypt(OutBlock.array(), this.XORKey*64);
     }
 
 
